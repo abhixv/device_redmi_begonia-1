@@ -23,17 +23,69 @@ def FullOTA_InstallEnd(info):
 def IncrementalOTA_InstallEnd(info):
   OTA_InstallEnd(info, True)
 
-def AddImage(info, basename, dest, incremental):
-  name = basename
+def AddImageOnly(info, basename, incremental):
   if incremental:
     input_zip = info.source_zip
   else:
     input_zip = info.input_zip
   data = input_zip.read("IMAGES/" + basename)
-  common.ZipWriteStr(info.output_zip, name, data)
-  info.script.AppendExtra('package_extract_file("%s", "%s");' % (name, dest))
+  common.ZipWriteStr(info.output_zip, basename, data)
+
+def AddImage(info, basename, dest, incremental):
+  AddImageOnly(info, basename, incremental)
+  info.script.AppendExtra('package_extract_file("%s", "%s");' % (basenamename, dest))
 
 def OTA_InstallEnd(info, incremental):
   info.script.Print("Patching vbmeta and dtbo images...")
   AddImage(info, "vbmeta.img", "/dev/block/by-name/vbmeta", incremental)
   AddImage(info, "dtbo.img", "/dev/block/by-name/dtbo", incremental)
+  Firmware_Images(info, incremental)
+
+def Firmware_Images(info, incremental):
+  bin_map = {
+      'logo': ['logo']
+      }
+
+  img_map = {
+      'audio_dsp': ['audio_dsp'],
+      'cam_vpu1': ['cam_vpu1'],
+      'cam_vpu2': ['cam_vpu2'],
+      'cam_vpu3': ['cam_vpu3'],
+      'gz': ['gz1', 'gz2'],
+      'lk': ['lk', 'lk2'],
+      'md1img': ['md1img'],
+      'oem_misc1': ['oem_misc1'],
+      'preloader_ufs': ['preloader_a', 'preloader_b'],
+      'scp': ['scp1', 'scp2'],
+      'spmfw': ['spmfw'],
+      'sspm': ['sspm_1', 'sspm_2'],
+      'tee': ['tee1', 'tee2']
+      }
+
+
+  fw_cmd = 'ifelse(getprop("ro.boot.hwc") == "India",\n(\n'
+  fw_cmd += 'ui_print("Flashing begoniain (Indian) firmware");\n'
+  for img in img_map.keys():
+    for part in img_map[img]:
+      AddImageOnly(info, '{}_in.img'.format(img), incremental)
+      fw_cmd += 'package_extract_file("{}_in.img", "/dev/block/bootdevice/by-name/{}");\n'.format(img, part)
+
+  for _bin in bin_map.keys():
+    for part in bin_map[_bin]:
+      AddImageOnly(info, '{}_in.bin'.format(_bin), incremental)
+      fw_cmd += 'package_extract_file("{}_in.bin", "/dev/block/bootdevice/by-name/{}");\n'.format(_bin, part)
+
+  fw_cmd += '),\n(\n'
+  fw_cmd += 'ui_print("Flashing begonia (Global) firmware");\n'
+
+  for img in img_map.keys():
+    for part in img_map[img]:
+      AddImageOnly(info, '{}.img'.format(img), incremental)
+      fw_cmd += 'package_extract_file("{}.img", "/dev/block/bootdevice/by-name/{}");\n'.format(img, part)
+
+  for _bin in bin_map.keys():
+    for part in bin_map[_bin]:
+      AddImageOnly(info, '{}.bin'.format(_bin), incremental)
+      fw_cmd += 'package_extract_file("{}.bin", "/dev/block/bootdevice/by-name/{}");\n'.format(_bin, part)
+  fw_cmd += ')\n)'
+  info.script.AppendExtra(fw_cmd)
