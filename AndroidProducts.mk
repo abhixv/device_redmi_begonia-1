@@ -15,4 +15,4 @@
 #
 
 PRODUCT_MAKEFILES := \
-    $(LOCAL_DIR)/404_begonia.mk
+    $(LOCAL_DIR)/p404_begonia.mk
